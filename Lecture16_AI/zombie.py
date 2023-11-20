@@ -22,6 +22,7 @@ FRAMES_PER_ACTION = 10.0
 
 animation_names = ['Walk', 'Idle']
 
+move_ball = 0
 
 class Zombie:
     images = None
@@ -107,6 +108,8 @@ class Zombie:
         else:
             return BehaviorTree.RUNNING
 
+
+
     def set_random_location(self):
         self.tx, self.ty = random.randint(100, 1280 - 100), random.randint(100, 1024 - 100)
         return BehaviorTree.SUCCESS
@@ -117,6 +120,15 @@ class Zombie:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.FAIL
+        pass
+
+    def check_ball(self, distance):
+        global move_ball
+        for ball in play_mode.balls:
+            if self.distance_less_than(ball.x, ball.y, self.x, self.y, distance):
+                move_ball = ball
+                return BehaviorTree.SUCCESS
+        return BehaviorTree.FAIL
         pass
 
     def is_boy_strong(self):
@@ -139,6 +151,15 @@ class Zombie:
         else:
             return BehaviorTree.RUNNING
 
+    def move_to_ball(self, r=0.5):
+        global move_ball
+        self.state = 'Walk'
+        self.move_slightly_to(move_ball.x, move_ball.y)
+        if self.distance_less_than(move_ball.x, move_ball.y, self.x, self.y, r):
+            return BehaviorTree.SUCCESS
+        else:
+            return BehaviorTree.RUNNING
+
     def run_to_boy(self, r=0.5):
         self.state = 'Walk'
         self.run_slightly_to(play_mode.boy.x, play_mode.boy.y)
@@ -146,6 +167,7 @@ class Zombie:
             return BehaviorTree.SUCCESS
         else:
             return BehaviorTree.RUNNING
+
 
     def get_patrol_location(self):
         pass
@@ -170,6 +192,13 @@ class Zombie:
         root = SEQ_run_boy = Sequence('소년에게서 도망', c1, c3, a5)
 
         root = SEL_chase_or_flee = Selector('추적 또는 도망 또는 배회', SEQ_chase_boy, SEQ_run_boy, SEQ_wander)
+
+        c4 = Condition('근처에 공이 있는가?', self.check_ball, 3)
+        a6 = Action('공에 접근', self.move_to_ball)
+        root = SEQ_move_ball = Sequence('공 추적', c4, a6)
+
+        root = SEL_chase_or_flee = Selector('추적 또는 도망 또는 공 추적 또는 배회', SEQ_chase_boy, SEQ_run_boy,
+                                            SEQ_move_ball, SEQ_wander)
 
         self.bt = BehaviorTree(root)
 
